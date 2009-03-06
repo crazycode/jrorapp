@@ -1,0 +1,1 @@
+jruby script/generate scaffold post title:string body:text published:boolean

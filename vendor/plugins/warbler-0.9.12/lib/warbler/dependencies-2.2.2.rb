@@ -235,7 +235,7 @@ module ActiveSupport #:nodoc:
 
     def require_or_load(file_name, const_path = nil)
       log_call file_name, const_path
-      file_name = $1 if file_name =~ /^(.*)\.rb$/
+      file_name = $1 if file_name =~ /^(.*)\.(rb|class)$/
       expanded = File.expand_path(file_name)
       return if loaded.include?(expanded)
 
@@ -249,7 +249,16 @@ module ActiveSupport #:nodoc:
 
           # Enable warnings iff this file has not been loaded before and
           # warnings_on_first_load is set.
-          load_args = ["#{file_name}.rb"]
+          if File.file? "#{file_name}.rb"
+            file_to_load = "#{file_name}.rb"
+          elsif File.file? "#{file_name}.class"
+            file_to_load = "#{file_name}.class"
+          else
+            file_to_load = file_name
+          end
+
+          load_args = [file_to_load]
+
           load_args << const_path unless const_path.nil?
 
           if !warnings_on_first_load or history.include?(expanded)
@@ -303,7 +312,7 @@ module ActiveSupport #:nodoc:
     # Given +path+, a filesystem path to a ruby file, return an array of constant
     # paths which would cause Dependencies to attempt to load this file.
     def loadable_constants_for_path(path, bases = load_paths)
-      path = $1 if path =~ /\A(.*)\.rb\Z/
+      path = $1 if path =~ /\A(.*)\.(rb|class)\Z/
       expanded_path = File.expand_path(path)
 
       bases.collect do |root|
@@ -330,10 +339,13 @@ module ActiveSupport #:nodoc:
 
     # Search for a file in load_paths matching the provided suffix.
     def search_for_file(path_suffix)
-      path_suffix = path_suffix + '.rb' unless path_suffix.ends_with? '.rb'
+      new_paths = [path_suffix + '.rb'] unless path_suffix.split('.').last =~ /rb|class/
+      new_paths << path_suffix + '.class' unless path_suffix.split('.').last =~ /rb|class/
       load_paths.each do |root|
-        path = File.join(root, path_suffix)
-        return path if File.file? path
+        new_paths.each do |new_path|
+          path = File.join(root, new_path)
+          return path if File.file? path
+        end
       end
       nil # Gee, I sure wish we had first_match ;-)
     end

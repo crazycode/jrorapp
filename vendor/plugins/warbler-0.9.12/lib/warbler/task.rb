@@ -180,13 +180,15 @@ module Warbler
       with_namespace_and_config do |name, config|
         desc "Compile rails code, and patch activesupport"
         task "compile" do
-          # TODO: replace lib/active_support/dependencies.rb with patched version
+          # replace lib/active_support/dependencies.rb with patched version
           cp "#{File.dirname(__FILE__)}/dependencies-2.2.2.rb",
-                "#{@config.staging_dir}/WEB-INF/gems/gems/activesupport-2.2.2/lib/active_support"
+                "#{@config.staging_dir}/WEB-INF/gems/gems/activesupport-2.2.2/lib/active_support/dependencies.rb"
 
-          # TODO: add jrubyc here.
-          sh "jrubyc #{@config.staging_dir}/WEB-INF/app/controllers"
-          sh "jrubyc #{@config.staging_dir}/WEB-INF/app/models"
+          # jrubyc all app file.
+          Dir["#{@config.staging_dir}/WEB-INF/app/**/*.rb"].each do |file|
+            rm file
+          end
+          sh "jrubyc app -t #{@config.staging_dir}/WEB-INF"
         end
       end
     end

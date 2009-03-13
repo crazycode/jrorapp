@@ -51,10 +51,12 @@ module Warbler
     private
     def define_tasks
       define_main_task
+      define_aot_task
       define_clean_task
       define_public_task
       define_gems_task
       define_webxml_task
+      define_compile_task
       define_app_task
       define_jar_task
       define_exploded_task
@@ -64,6 +66,11 @@ module Warbler
     def define_main_task
       desc "Create #{@config.war_name}.war"
       task @name => ["#{@name}:app", "#{@name}:public", "#{@name}:webxml", "#{@name}:jar"]
+    end
+
+    def define_aot_task
+      desc "Create AOT #{@config.war_name}.war"
+      task "#{@name}:aot" => ["#{@name}:app", "#{@name}:public", "#{@name}:webxml", "#{@name}:compile", "#{@name}:jar"]
     end
 
     def define_clean_task
@@ -169,18 +176,27 @@ module Warbler
       end
     end
 
+    def define_compile_task
+      with_namespace_and_config do |name, config|
+        desc "Compile rails code, and patch activesupport"
+        task "compile" do
+          # TODO: replace lib/active_support/dependencies.rb with patched version
+          cp "#{File.dirname(__FILE__)}/dependencies-2.2.2.rb",
+                "#{@config.staging_dir}/WEB-INF/gems/gems/activesupport-2.2.2/lib/active_support"
+
+          # TODO: add jrubyc here.
+          sh "jrubyc #{@config.staging_dir}/WEB-INF/app/controllers"
+          sh "jrubyc #{@config.staging_dir}/WEB-INF/app/models"
+        end
+      end
+    end
+
     def define_jar_task
       with_namespace_and_config do |name, config|
         desc "Run the jar command to create the .war"
         task "jar" do
           war_path = "#{config.war_name}.war"
           war_path = File.join(config.autodeploy_dir, war_path) if config.autodeploy_dir
-          # TODO: add jrubyc here.
-
-
-          # TODO: replace lib/active_support/dependencies.rb with patched version
-
-
           flags, manifest = config.manifest_file ? ["cfm", config.manifest_file] : ["cf", ""]
           sh "jar #{flags} #{war_path} #{manifest} -C #{config.staging_dir} ."
         end
